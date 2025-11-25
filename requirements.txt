@@ -1,16 +1,34 @@
-# Minimal dependencies for the model conversion & deployment service (no heavy DL frameworks)
+# Core web framework dependencies
 Flask>=2.2,<3.1
 flasgger>=0.9.7
 pydantic>=1.10,<3
 PyYAML>=6.0
 typing_extensions>=4.5
 
-# Optional (not installed by default):
-# ultralytics>=8.0.0    # for YOLO export; adapter has safe fallback if missing
-# onnx>=1.14.0          # for ONNX-related export paths
-# onnxruntime>=1.16.0   # for runtime tests
-# tensorrt              # for TensorRT compile (install via NVIDIA channels)
-# ascend-toolkit        # for Huawei Ascend ATC compile (install via vendor packages)
-# tf2onnx>=1.15.0       # for TensorFlow→ONNX conversion (optional)
-# paddle2onnx>=1.0.0    # for PaddlePaddle→ONNX conversion (optional)
-# safetensors>=0.3.0    # for SafeTensors format support (optional)
+# PyTorch ecosystem (required for PyTorch model support)
+torch>=1.12.0
+torchvision>=0.13.0
+
+# Optional: Deep learning framework adapters
+# transformers>=4.20.0  # for HuggingFace Transformer models (optional, adapter has fallback)
+# tensorflow>=2.8.0     # for TensorFlow model support (optional)
+# paddlepaddle>=2.4.0   # for PaddlePaddle model support (optional)
+
+# Optional: Model format conversion
+# onnx>=1.14.0          # for ONNX export and operations
+# onnxruntime>=1.16.0   # for ONNX runtime and quantization (quantize_dynamic, quantize_static)
+# onnxconverter-common>=1.9.0  # for ONNX FP16 conversion
+# tf2onnx>=1.15.0       # for TensorFlow→ONNX conversion
+# paddle2onnx>=1.0.0    # for PaddlePaddle→ONNX conversion
+
+# Optional: Model-specific adapters
+# ultralytics>=8.0.0    # for YOLO model support (adapter has safe fallback if missing)
+
+# Optional: File format support
+# safetensors>=0.3.0    # for SafeTensors format support (adapter has fallback)
+
+# Optional: Hardware compilation (install via vendor channels)
+# tensorrt              # for NVIDIA TensorRT compilation
+# ascend-toolkit        # for Huawei Ascend ATC compilation
+# cambricon-toolkit     # for Cambricon MLU compilation
+# m9-toolkit            # for M9 chip compilation
