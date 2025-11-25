@@ -1,0 +1,891 @@
+{
+  "templates": {
+    "quantize.fp16": {
+      "required_extra_files": [],
+      "optional_extra_files": [],
+      "configurable": {},
+      "expected_effects": {
+        "size_reduction": 0.5,
+        "speedup": 1.8,
+        "accuracy_drop": 0.005
+      }
+    },
+    "quantize.int8": {
+      "required_extra_files": [],
+      "optional_extra_files": ["calibration_data"],
+      "configurable": {
+        "calib_num": {
+          "type": "int",
+          "default": 100,
+          "min": 50,
+          "max": 500,
+          "description": "校准样本数量（仅INT8静态量化需要，有校准数据时自动使用静态量化）"
+        }
+      },
+      "expected_effects": {
+        "size_reduction": 0.25,
+        "speedup": 3.0,
+        "accuracy_drop": 0.02,
+        "note": "有校准数据时使用INT8静态量化（精度更高），否则使用INT8动态量化"
+      }
+    },
+    "quantize.qat": {
+      "required_extra_files": ["train_data"],
+      "optional_extra_files": [],
+      "configurable": {
+        "epochs": {
+          "type": "int",
+          "default": 10,
+          "min": 5,
+          "max": 50,
+          "description": "训练轮数"
+        },
+        "learning_rate": {
+          "type": "float",
+          "default": 0.001,
+          "min": 0.0001,
+          "max": 0.01,
+          "description": "学习率"
+        }
+      },
+      "expected_effects": {
+        "size_reduction": 0.25,
+        "speedup": 3.0,
+        "accuracy_drop": 0.01
+      }
+    },
+    "quantize.auto": {
+      "required_extra_files": [],
+      "optional_extra_files": ["calibration_data"],
+      "configurable": {},
+      "expected_effects": {
+        "note": "根据模型类型和可用资源自动选择最优量化方法（FP16/INT8动态/INT8静态/QAT）"
+      }
+    },
+    "prune.structured": {
+      "required_extra_files": [],
+      "optional_extra_files": ["val_data"],
+      "configurable": {
+        "target_sparsity": {
+          "type": "float",
+          "default": 0.3,
+          "min": 0.1,
+          "max": 0.7,
+          "description": "目标稀疏度（0.3表示剪枝30%的权重）"
+        }
+      },
+      "expected_effects": {
+        "size_reduction": 0.7,
+        "speedup": 1.2,
+        "accuracy_drop": 0.01
+      }
+    },
+    "prune.unstructured": {
+      "required_extra_files": [],
+      "optional_extra_files": ["val_data"],
+      "configurable": {
+        "target_sparsity": {
+          "type": "float",
+          "default": 0.3,
+          "min": 0.1,
+          "max": 0.7,
+          "description": "目标稀疏度"
+        }
+      },
+      "expected_effects": {
+        "size_reduction": 0.7,
+        "speedup": 1.1,
+        "accuracy_drop": 0.005
+      }
+    },
+    "prune.auto": {
+      "required_extra_files": [],
+      "optional_extra_files": ["val_data"],
+      "configurable": {
+        "target_sparsity": {
+          "type": "float",
+          "default": 0.3,
+          "min": 0.1,
+          "max": 0.7,
+          "description": "目标稀疏度（可选，不指定则根据模型类型自动选择）"
+        }
+      },
+      "expected_effects": {
+        "note": "根据模型类型自动选择结构化或非结构化剪枝"
+      }
+    },
+    "distill.knowledge_distillation": {
+      "required_extra_files": ["teacher_model", "train_data"],
+      "optional_extra_files": [],
+      "configurable": {
+        "temperature": {
+          "type": "float",
+          "default": 4.0,
+          "min": 1.0,
+          "max": 10.0,
+          "description": "蒸馏温度"
+        },
+        "alpha": {
+          "type": "float",
+          "default": 0.7,
+          "min": 0.1,
+          "max": 1.0,
+          "description": "蒸馏损失权重"
+        },
+        "epochs": {
+          "type": "int",
+          "default": 20,
+          "min": 10,
+          "max": 100,
+          "description": "训练轮数"
+        }
+      },
+      "expected_effects": {
+        "size_reduction": 0.5,
+        "speedup": 1.5,
+        "accuracy_drop": 0.02
+      }
+    },
+    "distill.auto": {
+      "required_extra_files": ["teacher_model", "train_data"],
+      "optional_extra_files": [],
+      "configurable": {
+        "temperature": {
+          "type": "float",
+          "default": 4.0,
+          "min": 1.0,
+          "max": 10.0,
+          "description": "蒸馏温度"
+        },
+        "alpha": {
+          "type": "float",
+          "default": 0.7,
+          "min": 0.1,
+          "max": 1.0,
+          "description": "蒸馏损失权重"
+        },
+        "epochs": {
+          "type": "int",
+          "default": 20,
+          "min": 10,
+          "max": 100,
+          "description": "训练轮数"
+        }
+      },
+      "expected_effects": {
+        "note": "根据任务类型自动选择蒸馏方法"
+      }
+    }
+  },
+  "models": {
+    "pytorch.yolo": {
+      "framework": "pytorch",
+      "family": "yolo",
+      "compression": {
+        "quantize": {
+          "enabled": true,
+          "methods": {
+            "auto": { "_template": "quantize.auto" },
+            "fp16": { "_template": "quantize.fp16" },
+            "int8": { "_template": "quantize.int8" },
+            "qat": { "_template": "quantize.qat" }
+          },
+          "recommended": "auto"
+        },
+        "prune": {
+          "enabled": true,
+          "methods": {
+            "auto": { "_template": "prune.auto" },
+            "structured_pruning": { "_template": "prune.structured" },
+            "unstructured_pruning": { "_template": "prune.unstructured" }
+          },
+          "recommended": "auto"
+        },
+        "distill": {
+          "enabled": false,
+          "reason": "检测任务蒸馏需要特殊的损失函数，当前版本未实现"
+        }
+      }
+    },
+    "pytorch.resnet": {
+      "framework": "pytorch",
+      "family": "resnet",
+      "compression": {
+        "quantize": {
+          "enabled": true,
+          "methods": {
+            "auto": { "_template": "quantize.auto" },
+            "fp16": { "_template": "quantize.fp16" },
+            "int8": { "_template": "quantize.int8" },
+            "qat": { "_template": "quantize.qat" }
+          },
+          "recommended": "auto"
+        },
+        "prune": {
+          "enabled": true,
+          "methods": {
+            "auto": { "_template": "prune.auto" },
+            "structured_pruning": { "_template": "prune.structured" },
+            "unstructured_pruning": { "_template": "prune.unstructured" }
+          },
+          "recommended": "auto"
+        },
+        "distill": {
+          "enabled": true,
+          "methods": {
+            "auto": { "_template": "distill.auto" },
+            "knowledge_distillation": { "_template": "distill.knowledge_distillation" }
+          },
+          "recommended": "auto"
+        }
+      }
+    },
+    "pytorch.vgg": {
+      "framework": "pytorch",
+      "family": "vgg",
+      "compression": {
+        "quantize": {
+          "enabled": true,
+          "methods": {
+            "auto": { "_template": "quantize.auto" },
+            "fp16": { "_template": "quantize.fp16" },
+            "int8": { "_template": "quantize.int8" },
+            "qat": { "_template": "quantize.qat" }
+          },
+          "recommended": "auto"
+        },
+        "prune": {
+          "enabled": true,
+          "methods": {
+            "auto": { "_template": "prune.auto" },
+            "structured_pruning": { "_template": "prune.structured" },
+            "unstructured_pruning": { "_template": "prune.unstructured" }
+          },
+          "recommended": "auto"
+        },
+        "distill": {
+          "enabled": true,
+          "methods": {
+            "auto": { "_template": "distill.auto" },
+            "knowledge_distillation": { "_template": "distill.knowledge_distillation" }
+          },
+          "recommended": "auto"
+        }
+      }
+    },
+    "pytorch.vae": {
+      "framework": "pytorch",
+      "family": "vae",
+      "compression": {
+        "quantize": {
+          "enabled": true,
+          "methods": {
+            "auto": { "_template": "quantize.auto" },
+            "fp16": { "_template": "quantize.fp16" },
+            "int8": {
+              "_template": "quantize.int8",
+              "expected_effects": {
+                "speedup": 2.0,
+                "accuracy_drop": 0.02,
+                "note": "VAE模型仅支持INT8动态量化（Linear层）"
+              }
+            }
+          },
+          "recommended": "auto"
+        },
+        "prune": {
+          "enabled": true,
+          "methods": {
+            "auto": { "_template": "prune.auto" },
+            "structured_pruning": {
+              "_template": "prune.structured",
+              "expected_effects": {
+                "size_reduction": 0.7,
+                "speedup": 1.2,
+                "accuracy_drop": 0.02
+              }
+            }
+          },
+          "recommended": "auto"
+        },
+        "distill": {
+          "enabled": false,
+          "reason": "VAE模型蒸馏需要特殊处理，当前版本未实现"
+        }
+      }
+    },
+    "pytorch.vit": {
+      "framework": "pytorch",
+      "family": "vit",
+      "compression": {
+        "quantize": {
+          "enabled": true,
+          "methods": {
+            "auto": { "_template": "quantize.auto" },
+            "fp16": { "_template": "quantize.fp16" },
+            "int8": { "_template": "quantize.int8" }
+          },
+          "recommended": "auto"
+        },
+        "prune": {
+          "enabled": false,
+          "reason": "ViT模型剪枝需要特殊处理，当前版本未实现"
+        },
+        "distill": {
+          "enabled": false,
+          "reason": "ViT模型蒸馏需要特殊处理，当前版本未实现"
+        }
+      }
+    },
+    "pytorch.inceptionv4": {
+      "framework": "pytorch",
+      "family": "inceptionv4",
+      "compression": {
+        "quantize": {
+          "enabled": true,
+          "methods": {
+            "auto": { "_template": "quantize.auto" },
+            "fp16": { "_template": "quantize.fp16" },
+            "int8": { "_template": "quantize.int8" },
+            "qat": { "_template": "quantize.qat" }
+          },
+          "recommended": "auto"
+        },
+        "prune": {
+          "enabled": true,
+          "methods": {
+            "auto": { "_template": "prune.auto" },
+            "structured_pruning": { "_template": "prune.structured" },
+            "unstructured_pruning": { "_template": "prune.unstructured" }
+          },
+          "recommended": "auto"
+        },
+        "distill": {
+          "enabled": true,
+          "methods": {
+            "auto": { "_template": "distill.auto" },
+            "knowledge_distillation": { "_template": "distill.knowledge_distillation" }
+          },
+          "recommended": "auto"
+        }
+      }
+    },
+    "pytorch.cnn": {
+      "framework": "pytorch",
+      "family": "cnn",
+      "compression": {
+        "quantize": {
+          "enabled": true,
+          "methods": {
+            "auto": { "_template": "quantize.auto" },
+            "fp16": { "_template": "quantize.fp16" },
+            "int8": { "_template": "quantize.int8" },
+            "qat": { "_template": "quantize.qat" }
+          },
+          "recommended": "auto"
+        },
+        "prune": {
+          "enabled": true,
+          "methods": {
+            "auto": { "_template": "prune.auto" },
+            "structured_pruning": { "_template": "prune.structured" },
+            "unstructured_pruning": { "_template": "prune.unstructured" }
+          },
+          "recommended": "auto"
+        },
+        "distill": {
+          "enabled": true,
+          "methods": {
+            "auto": { "_template": "distill.auto" },
+            "knowledge_distillation": { "_template": "distill.knowledge_distillation" }
+          },
+          "recommended": "auto"
+        }
+      }
+    },
+    "pytorch.transformer": {
+      "framework": "pytorch",
+      "family": "transformer",
+      "compression": {
+        "quantize": {
+          "enabled": true,
+          "methods": {
+            "auto": { "_template": "quantize.auto" },
+            "fp16": { "_template": "quantize.fp16" },
+            "int8": { "_template": "quantize.int8" }
+          },
+          "recommended": "auto"
+        },
+        "prune": {
+          "enabled": true,
+          "methods": {
+            "auto": { "_template": "prune.auto" },
+            "unstructured_pruning": {
+              "_template": "prune.unstructured",
+              "configurable": {
+                "target_sparsity": {
+                  "type": "float",
+                  "default": 0.25,
+                  "min": 0.1,
+                  "max": 0.6,
+                  "description": "目标稀疏度"
+                }
+              }
+            }
+          },
+          "recommended": "auto"
+        },
+        "distill": {
+          "enabled": false,
+          "reason": "Transformer模型蒸馏需要特殊处理，当前版本未实现"
+        }
+      }
+    },
+    "pytorch.lstm": {
+      "framework": "pytorch",
+      "family": "lstm",
+      "compression": {
+        "quantize": {
+          "enabled": true,
+          "methods": {
+            "auto": { "_template": "quantize.auto" },
+            "fp16": { "_template": "quantize.fp16" },
+            "int8": {
+              "_template": "quantize.int8",
+              "expected_effects": {
+                "speedup": 2.0,
+                "accuracy_drop": 0.02,
+                "note": "LSTM模型仅支持INT8动态量化（Linear层）"
+              }
+            }
+          },
+          "recommended": "auto"
+        },
+        "prune": {
+          "enabled": true,
+          "methods": {
+            "auto": { "_template": "prune.auto" },
+            "structured_pruning": {
+              "_template": "prune.structured",
+              "configurable": {
+                "target_sparsity": {
+                  "type": "float",
+                  "default": 0.2,
+                  "min": 0.1,
+                  "max": 0.5,
+                  "description": "目标稀疏度"
+                }
+              },
+              "expected_effects": {
+                "size_reduction": 0.6,
+                "speedup": 1.1,
+                "accuracy_drop": 0.02
+              }
+            }
+          },
+          "recommended": "auto"
+        },
+        "distill": {
+          "enabled": false,
+          "reason": "LSTM模型蒸馏需要特殊处理，当前版本未实现"
+        }
+      }
+    },
+    "pytorch.rnn": {
+      "framework": "pytorch",
+      "family": "rnn",
+      "compression": {
+        "quantize": {
+          "enabled": true,
+          "methods": {
+            "auto": { "_template": "quantize.auto" },
+            "fp16": { "_template": "quantize.fp16" },
+            "int8": {
+              "_template": "quantize.int8",
+              "expected_effects": {
+                "speedup": 2.0,
+                "accuracy_drop": 0.02,
+                "note": "RNN模型仅支持INT8动态量化（Linear层）"
+              }
+            }
+          },
+          "recommended": "auto"
+        },
+        "prune": {
+          "enabled": true,
+          "methods": {
+            "auto": { "_template": "prune.auto" },
+            "structured_pruning": {
+              "_template": "prune.structured",
+              "configurable": {
+                "target_sparsity": {
+                  "type": "float",
+                  "default": 0.2,
+                  "min": 0.1,
+                  "max": 0.5,
+                  "description": "目标稀疏度"
+                }
+              },
+              "expected_effects": {
+                "size_reduction": 0.6,
+                "speedup": 1.1,
+                "accuracy_drop": 0.02
+              }
+            }
+          },
+          "recommended": "auto"
+        },
+        "distill": {
+          "enabled": false,
+          "reason": "RNN模型蒸馏需要特殊处理，当前版本未实现"
+        }
+      }
+    },
+    "pytorch.van": {
+      "framework": "pytorch",
+      "family": "van",
+      "compression": {
+        "quantize": {
+          "enabled": true,
+          "methods": {
+            "auto": { "_template": "quantize.auto" },
+            "fp16": { "_template": "quantize.fp16" },
+            "int8": { "_template": "quantize.int8" },
+            "qat": { "_template": "quantize.qat" }
+          },
+          "recommended": "auto"
+        },
+        "prune": {
+          "enabled": true,
+          "methods": {
+            "auto": { "_template": "prune.auto" },
+            "structured_pruning": { "_template": "prune.structured" },
+            "unstructured_pruning": { "_template": "prune.unstructured" }
+          },
+          "recommended": "auto"
+        },
+        "distill": {
+          "enabled": true,
+          "methods": {
+            "auto": { "_template": "distill.auto" },
+            "knowledge_distillation": { "_template": "distill.knowledge_distillation" }
+          },
+          "recommended": "auto"
+        }
+      }
+    },
+    "pytorch.gcn": {
+      "framework": "pytorch",
+      "family": "gcn",
+      "compression": {
+        "quantize": {
+          "enabled": true,
+          "methods": {
+            "auto": { "_template": "quantize.auto" },
+            "fp16": { "_template": "quantize.fp16" },
+            "int8": {
+              "_template": "quantize.int8",
+              "expected_effects": {
+                "speedup": 2.0,
+                "accuracy_drop": 0.02,
+                "note": "GCN模型仅支持INT8动态量化（Linear层）"
+              }
+            }
+          },
+          "recommended": "auto"
+        },
+        "prune": {
+          "enabled": true,
+          "methods": {
+            "auto": { "_template": "prune.auto" },
+            "structured_pruning": {
+              "_template": "prune.structured",
+              "configurable": {
+                "target_sparsity": {
+                  "type": "float",
+                  "default": 0.25,
+                  "min": 0.1,
+                  "max": 0.5,
+                  "description": "目标稀疏度"
+                }
+              },
+              "expected_effects": {
+                "size_reduction": 0.6,
+                "speedup": 1.1,
+                "accuracy_drop": 0.02
+              }
+            }
+          },
+          "recommended": "auto"
+        },
+        "distill": {
+          "enabled": false,
+          "reason": "GCN模型蒸馏需要特殊处理，当前版本未实现"
+        }
+      }
+    },
+    "onnx.generic": {
+      "framework": "onnx",
+      "family": "generic",
+      "compression": {
+        "quantize": {
+          "enabled": true,
+          "methods": {
+            "int8": { "_template": "quantize.int8" }
+          },
+          "recommended": "int8"
+        },
+        "prune": {
+          "enabled": false,
+          "reason": "ONNX模型剪枝需要特殊处理"
+        },
+        "distill": {
+          "enabled": false,
+          "reason": "ONNX模型蒸馏需要特殊处理"
+        }
+      }
+    },
+    "tensorflow.generic": {
+      "framework": "tensorflow",
+      "family": "generic",
+      "compression": {
+        "quantize": {
+          "enabled": true,
+          "methods": {
+            "auto": { "_template": "quantize.auto" },
+            "fp16": { "_template": "quantize.fp16" },
+            "int8": { "_template": "quantize.int8" }
+          },
+          "recommended": "auto"
+        },
+        "prune": {
+          "enabled": true,
+          "methods": {
+            "auto": { "_template": "prune.auto" },
+            "structured_pruning": { "_template": "prune.structured" },
+            "unstructured_pruning": { "_template": "prune.unstructured" }
+          },
+          "recommended": "auto"
+        },
+        "distill": {
+          "enabled": true,
+          "methods": {
+            "auto": { "_template": "distill.auto" },
+            "knowledge_distillation": { "_template": "distill.knowledge_distillation" }
+          },
+          "recommended": "auto"
+        }
+      }
+    },
+    "tensorflow.keras": {
+      "framework": "tensorflow",
+      "family": "keras",
+      "compression": {
+        "quantize": {
+          "enabled": true,
+          "methods": {
+            "auto": { "_template": "quantize.auto" },
+            "fp16": { "_template": "quantize.fp16" },
+            "int8": { "_template": "quantize.int8" }
+          },
+          "recommended": "auto"
+        },
+        "prune": {
+          "enabled": true,
+          "methods": {
+            "auto": { "_template": "prune.auto" },
+            "structured_pruning": { "_template": "prune.structured" },
+            "unstructured_pruning": { "_template": "prune.unstructured" }
+          },
+          "recommended": "auto"
+        },
+        "distill": {
+          "enabled": true,
+          "methods": {
+            "auto": { "_template": "distill.auto" },
+            "knowledge_distillation": { "_template": "distill.knowledge_distillation" }
+          },
+          "recommended": "auto"
+        }
+      }
+    },
+    "paddlepaddle.generic": {
+      "framework": "paddlepaddle",
+      "family": "generic",
+      "compression": {
+        "quantize": {
+          "enabled": true,
+          "methods": {
+            "auto": { "_template": "quantize.auto" },
+            "fp16": { "_template": "quantize.fp16" },
+            "int8": { "_template": "quantize.int8" }
+          },
+          "recommended": "auto"
+        },
+        "prune": {
+          "enabled": false,
+          "reason": "PaddlePaddle模型剪枝需要特殊处理"
+        },
+        "distill": {
+          "enabled": false,
+          "reason": "PaddlePaddle模型蒸馏需要特殊处理"
+        }
+      }
+    },
+    "paddle.generic": {
+      "framework": "paddlepaddle",
+      "family": "generic",
+      "compression": {
+        "quantize": {
+          "enabled": true,
+          "methods": {
+            "auto": { "_template": "quantize.auto" },
+            "fp16": { "_template": "quantize.fp16" },
+            "int8": { "_template": "quantize.int8" }
+          },
+          "recommended": "auto"
+        },
+        "prune": {
+          "enabled": false,
+          "reason": "PaddlePaddle模型剪枝需要特殊处理"
+        },
+        "distill": {
+          "enabled": false,
+          "reason": "PaddlePaddle模型蒸馏需要特殊处理"
+        }
+      }
+    },
+    "sklearn.spectral_clustering": {
+      "framework": "sklearn",
+      "family": "spectral_clustering",
+      "compression": {
+        "quantize": {
+          "enabled": false,
+          "reason": "传统ML模型不支持量化"
+        },
+        "prune": {
+          "enabled": false,
+          "reason": "传统ML模型不支持剪枝"
+        },
+        "distill": {
+          "enabled": false,
+          "reason": "传统ML模型不支持蒸馏"
+        }
+      }
+    },
+    "sklearn.dbscan": {
+      "framework": "sklearn",
+      "family": "dbscan",
+      "compression": {
+        "quantize": {
+          "enabled": false,
+          "reason": "传统ML模型不支持量化"
+        },
+        "prune": {
+          "enabled": false,
+          "reason": "传统ML模型不支持剪枝"
+        },
+        "distill": {
+          "enabled": false,
+          "reason": "传统ML模型不支持蒸馏"
+        }
+      }
+    },
+    "sklearn.kmeans": {
+      "framework": "sklearn",
+      "family": "kmeans",
+      "compression": {
+        "quantize": {
+          "enabled": false,
+          "reason": "传统ML模型不支持量化"
+        },
+        "prune": {
+          "enabled": false,
+          "reason": "传统ML模型不支持剪枝"
+        },
+        "distill": {
+          "enabled": false,
+          "reason": "传统ML模型不支持蒸馏"
+        }
+      }
+    },
+    "traditional_ml.spectral_clustering": {
+      "framework": "traditional_ml",
+      "family": "spectral_clustering",
+      "compression": {
+        "quantize": {
+          "enabled": false,
+          "reason": "传统ML模型不支持量化"
+        },
+        "prune": {
+          "enabled": false,
+          "reason": "传统ML模型不支持剪枝"
+        },
+        "distill": {
+          "enabled": false,
+          "reason": "传统ML模型不支持蒸馏"
+        }
+      }
+    },
+    "traditional_ml.sc": {
+      "framework": "traditional_ml",
+      "family": "sc",
+      "compression": {
+        "quantize": {
+          "enabled": false,
+          "reason": "传统ML模型不支持量化"
+        },
+        "prune": {
+          "enabled": false,
+          "reason": "传统ML模型不支持剪枝"
+        },
+        "distill": {
+          "enabled": false,
+          "reason": "传统ML模型不支持蒸馏"
+        }
+      }
+    },
+    "traditional_ml.dbscan": {
+      "framework": "traditional_ml",
+      "family": "dbscan",
+      "compression": {
+        "quantize": {
+          "enabled": false,
+          "reason": "传统ML模型不支持量化"
+        },
+        "prune": {
+          "enabled": false,
+          "reason": "传统ML模型不支持剪枝"
+        },
+        "distill": {
+          "enabled": false,
+          "reason": "传统ML模型不支持蒸馏"
+        }
+      }
+    },
+    "traditional_ml.kmeans": {
+      "framework": "traditional_ml",
+      "family": "kmeans",
+      "compression": {
+        "quantize": {
+          "enabled": false,
+          "reason": "传统ML模型不支持量化"
+        },
+        "prune": {
+          "enabled": false,
+          "reason": "传统ML模型不支持剪枝"
+        },
+        "distill": {
+          "enabled": false,
+          "reason": "传统ML模型不支持蒸馏"
+        }
+      }
+    }
+  },
+  "file_types": {
+    "calibration_data": "calibration_data",
+    "train_data": "train_data",
+    "val_data": "val_data",
+    "teacher_model": "teacher_model"
+  }
+}

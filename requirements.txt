@@ -1,0 +1,16 @@
+# Minimal dependencies for the model conversion & deployment service (no heavy DL frameworks)
+Flask>=2.2,<3.1
+flasgger>=0.9.7
+pydantic>=1.10,<3
+PyYAML>=6.0
+typing_extensions>=4.5
+
+# Optional (not installed by default):
+# ultralytics>=8.0.0    # for YOLO export; adapter has safe fallback if missing
+# onnx>=1.14.0          # for ONNX-related export paths
+# onnxruntime>=1.16.0   # for runtime tests
+# tensorrt              # for TensorRT compile (install via NVIDIA channels)
+# ascend-toolkit        # for Huawei Ascend ATC compile (install via vendor packages)
+# tf2onnx>=1.15.0       # for TensorFlow→ONNX conversion (optional)
+# paddle2onnx>=1.0.0    # for PaddlePaddle→ONNX conversion (optional)
+# safetensors>=0.3.0    # for SafeTensors format support (optional)

@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>模型压缩功能演示</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            color: #333;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e8ecf0;
+        }
+        
+        .header h1 {
+            font-size: 2em;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            color: #7f8c8d;
+            font-size: 1.1em;
+        }
+        
+        /* 压缩面板容器 */
+        .compression-panel {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            margin-bottom: 40px;
+        }
+        
+        /* 压缩卡片 */
+        .compression-card {
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%);
+            border: 2px solid #e8ecf0;
+            border-radius: 16px;
+            padding: 28px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .compression-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+            transform: scaleY(0);
+            transition: transform 0.3s ease;
+        }
+        
+        .compression-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.2);
+            transform: translateY(-4px);
+        }
+        
+        .compression-card.active {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #f8f9ff 0%, #ffffff 100%);
+            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.25);
+        }
+        
+        .compression-card.active::before {
+            transform: scaleY(1);
+        }
+        
+        .compression-card h3 {
+            font-size: 1.3em;
+            color: #2c3e50;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .compression-card h3::before {
+            content: '';
+            width: 4px;
+            height: 20px;
+            background: #667eea;
+            border-radius: 2px;
+        }
+        
+        /* 复选框组 */
+        .checkbox-group {
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            width: 22px;
+            height: 22px;
+            margin-right: 10px;
+            cursor: pointer;
+            accent-color: #667eea;
+            border-radius: 4px;
+        }
+        
+        .checkbox-group label {
+            font-size: 1.05em;
+            color: #34495e;
+            cursor: pointer;
+            user-select: none;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .checkbox-group input[type="checkbox"]:checked + label {
+            color: #667eea;
+        }
+        
+        /* 下拉菜单 */
+        .method-dropdown {
+            width: 100%;
+            padding: 14px 18px;
+            border: 2px solid #e8ecf0;
+            border-radius: 10px;
+            font-size: 1em;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 12px;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23667eea' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 16px center;
+            padding-right: 40px;
+        }
+        
+        .method-dropdown:hover {
+            border-color: #667eea;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
+        }
+        
+        .method-dropdown:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15);
+        }
+        
+        .method-dropdown:disabled {
+            background: #f5f5f5;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        
+        /* 参数配置面板 */
+        .config-panel {
+            margin-top: 16px;
+            padding: 16px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e8ecf0;
+            display: none;
+        }
+        
+        .config-panel.show {
+            display: block;
+        }
+        
+        .config-item {
+            margin-bottom: 16px;
+        }
+        
+        .config-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .config-item label {
+            display: block;
+            font-size: 0.9em;
+            color: #555;
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+        
+        .config-item input[type="number"],
+        .config-item input[type="range"] {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.95em;
+        }
+        
+        .config-item input[type="range"] {
+            padding: 0;
+            height: 6px;
+            background: #e8ecf0;
+            outline: none;
+        }
+        
+        .config-item input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            background: #667eea;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        
+        .config-item input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            background: #667eea;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+        
+        .config-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            margin-right: 8px;
+            cursor: pointer;
+        }
+        
+        .help-text {
+            display: block;
+            font-size: 0.85em;
+            color: #7f8c8d;
+            margin-top: 4px;
+        }
+        
+        .sparsity-display {
+            display: inline-block;
+            margin-left: 8px;
+            font-weight: 600;
+            color: #667eea;
+            min-width: 50px;
+        }
+        
+        .file-check {
+            margin-top: 12px;
+            padding: 12px;
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 6px;
+            font-size: 0.9em;
+        }
+        
+        .file-check.warning {
+            color: #856404;
+        }
+        
+        .file-check.success {
+            background: #d4edda;
+            border-color: #28a745;
+            color: #155724;
+        }
+        
+        /* 底部操作按钮 */
+        .action-buttons {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 2px solid #e8ecf0;
+        }
+        
+        .btn-upload,
+        .btn-upload,
+        .btn-execute {
+            flex: 1;
+            padding: 18px 36px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.15em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn-upload {
+            background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+            color: white;
+        }
+        
+        .btn-upload::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+        
+        .btn-upload:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+        
+        .btn-upload:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(108, 117, 125, 0.4);
+        }
+        
+        .btn-execute {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-execute::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+        
+        .btn-execute:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+        
+        .btn-execute:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.5);
+        }
+        
+        .btn-execute:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-execute:disabled::before {
+            display: none;
+        }
+        
+        .icon {
+            font-size: 1.2em;
+        }
+        
+        .help-icon {
+            font-size: 0.9em;
+            opacity: 0.7;
+            margin-left: 4px;
+        }
+        
+        /* ZIP格式说明弹窗 */
+        .zip-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .zip-modal.show {
+            display: flex;
+        }
+        
+        .zip-modal-content {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+        }
+        
+        .zip-modal-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            font-size: 2em;
+            cursor: pointer;
+            color: #999;
+            line-height: 1;
+        }
+        
+        .zip-modal-close:hover {
+            color: #333;
+        }
+        
+        .zip-modal-content h2 {
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+        
+        .zip-structure {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            margin: 16px 0;
+            white-space: pre-line;
+            line-height: 1.8;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+        
+        .status-badge.success {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-badge.warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .status-badge.info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 1024px) {
+            .compression-panel {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>模型压缩功能演示</h1>
+            <p>选择压缩技术并配置参数，然后执行操作</p>
+        </div>
+        
+        <!-- 
+            压缩面板：三个压缩技术卡片（横向排列）
+            每个卡片包含：单选按钮 + 下拉菜单 + 参数配置面板（可选）
+        -->
+        <div class="compression-panel">
+            
+            <!-- ========== 模型量化卡片 ========== -->
+            <div class="compression-card" id="quantize-card">
+                <h3>模型量化</h3>
+                
+                <!-- 复选框组 -->
+                <div class="checkbox-group">
+                    <input type="checkbox" name="compression-type" value="quantize" id="quantize-checkbox">
+                    <label for="quantize-checkbox">启用模型量化</label>
+                </div>
+                
+                <!-- 
+                    下拉菜单选项说明：
+                    1. 自动量化（推荐）- 根据模型类型自动选择最优方法
+                    2. FP16 - FP16半精度量化
+                    3. INT8 - 未上传校准数据→INT8动态，已上传→INT8静态（精度更高）
+                    4. 量化感知训练（QAT）- 需要训练数据
+                -->
+                <select class="method-dropdown" id="quantize-method">
+                    <option value="auto">自动量化（推荐）</option>
+                    <option value="fp16">FP16</option>
+                    <option value="int8">INT8</option>
+                    <option value="qat">量化感知训练</option>
+                </select>
+                
+                <!-- 参数配置面板 -->
+                <div class="config-panel" id="quantize-config">
+                    <!-- INT8静态量化参数（仅当上传了calibration_data时显示） -->
+                    <div class="config-item" id="int8-config" style="display: none;">
+                        <label>校准样本数量 (calib_num):</label>
+                        <input type="number" min="50" max="500" value="100" name="calib_num" id="calib_num">
+                        <span class="help-text">范围: 50-500，默认: 100</span>
+                    </div>
+                    
+                    <!-- QAT参数配置 -->
+                    <div class="config-item" id="qat-config" style="display: none;">
+                        <label>训练轮数 (epochs):</label>
+                        <input type="number" min="5" max="50" value="10" name="epochs" id="qat_epochs">
+                        <span class="help-text">范围: 5-50，默认: 10</span>
+                    </div>
+                    
+                    <div class="config-item" id="qat-lr-config" style="display: none;">
+                        <label>学习率 (learning_rate):</label>
+                        <input type="number" min="0.0001" max="0.01" step="0.0001" value="0.001" name="learning_rate" id="qat_lr">
+                        <span class="help-text">范围: 0.0001-0.01，默认: 0.001</span>
+                    </div>
+                    
+                    <!-- 文件检查提示 -->
+                    <div class="file-check warning" id="qat-file-check" style="display: none;">
+                        ⚠️ 需要上传训练数据 (train_data) 才能使用QAT量化
+                    </div>
+                </div>
+            </div>
+            
+            
+            <!-- ========== 模型剪枝卡片 ========== -->
+            <div class="compression-card" id="prune-card">
+                <h3>模型剪枝</h3>
+                
+                <!-- 复选框组 -->
+                <div class="checkbox-group">
+                    <input type="checkbox" name="compression-type" value="prune" id="prune-checkbox">
+                    <label for="prune-checkbox">启用模型剪枝</label>
+                </div>
+                
+                <!-- 
+                    下拉菜单选项说明：
+                    1. 自动剪枝（推荐）- 根据模型类型自动选择结构化/非结构化剪枝
+                    2. 结构化剪枝 - 硬件友好
+                    3. 非结构化剪枝 - 精度损失更小
+                -->
+                <select class="method-dropdown" id="prune-method">
+                    <option value="auto">自动剪枝（推荐）</option>
+                    <option value="structured_pruning">结构化剪枝</option>
+                    <option value="unstructured_pruning">非结构化剪枝</option>
+                </select>
+                
+                <!-- 参数配置面板 -->
+                <div class="config-panel" id="prune-config">
+                    <!-- 剪枝百分比配置 -->
+                    <div class="config-item">
+                        <label>目标稀疏度 (target_sparsity):</label>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <input type="range" min="0.1" max="0.7" step="0.05" value="0.3" 
+                                   name="target_sparsity" id="sparsity-slider">
+                            <span class="sparsity-display" id="sparsity-value">30%</span>
+                        </div>
+                        <span class="help-text">范围: 0.1-0.7（10%-70%），默认: 0.3（30%）</span>
+                    </div>
+                    
+                    <!-- 精度评估选项（当上传了val_data时显示） -->
+                    <div class="config-item" id="val-data-check" style="display: none;">
+                        <label>
+                            <input type="checkbox" name="enable_evaluation" id="enable_eval" checked>
+                            使用验证数据评估精度损失
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            
+            <!-- ========== 知识蒸馏卡片 ========== -->
+            <div class="compression-card" id="distill-card">
+                <h3>知识蒸馏</h3>
+                
+                <!-- 复选框组 -->
+                <div class="checkbox-group">
+                    <input type="checkbox" name="compression-type" value="distill" id="distill-checkbox">
+                    <label for="distill-checkbox">启用知识蒸馏</label>
+                </div>
+                
+                <!-- 
+                    下拉菜单选项说明：
+                    1. 自动蒸馏（推荐）- 根据任务类型自动选择蒸馏方法（分类任务已实现，检测任务占位）
+                    2. 知识蒸馏 - 需要教师模型和训练数据
+                -->
+                <select class="method-dropdown" id="distill-method">
+                    <option value="auto">自动蒸馏（推荐）</option>
+                    <option value="knowledge_distillation">知识蒸馏</option>
+                </select>
+                
+                <!-- 参数配置面板 -->
+                <div class="config-panel" id="distill-config">
+                    <!-- 蒸馏参数配置 -->
+                    <div class="config-item">
+                        <label>温度参数 (temperature):</label>
+                        <input type="number" min="1.0" max="10.0" step="0.1" value="4.0" name="temperature" id="distill_temp">
+                        <span class="help-text">范围: 1.0-10.0，默认: 4.0</span>
+                    </div>
+                    
+                    <div class="config-item">
+                        <label>蒸馏损失权重 (alpha):</label>
+                        <input type="number" min="0.1" max="1.0" step="0.05" value="0.7" name="alpha" id="distill_alpha">
+                        <span class="help-text">范围: 0.1-1.0，默认: 0.7</span>
+                    </div>
+                    
+                    <div class="config-item">
+                        <label>训练轮数 (epochs):</label>
+                        <input type="number" min="10" max="100" value="20" name="epochs" id="distill_epochs">
+                        <span class="help-text">范围: 10-100，默认: 20</span>
+                    </div>
+                    
+                    <!-- 文件检查提示 -->
+                    <div class="file-check warning" id="distill-file-check">
+                        ⚠️ 需要上传: 教师模型 (teacher_model) + 训练数据 (train_data)
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+        
+        
+        <!-- ========== 底部操作按钮 ========== -->
+        <div class="action-buttons">
+            <!-- 
+                上传文件按钮
+                - 功能: 上传ZIP格式的额外文件
+                - API: POST /upload-extra-files
+                - 文件格式: 必须是ZIP文件
+            -->
+            <button class="btn-upload" id="upload-btn">
+                <span class="icon">↑</span>
+                上传文件
+                <span class="help-icon" id="zip-help-btn">?</span>
+            </button>
+            
+            <!-- 
+                执行操作按钮
+                - 功能: 执行选中的压缩操作
+                - API: POST /execute
+            -->
+            <button class="btn-execute" id="execute-btn">
+                <span class="icon">▶</span>
+                执行操作
+            </button>
+        </div>
+        
+    </div>
+    
+    
+    <!-- ========== ZIP文件格式说明弹窗 ========== -->
+    <div class="zip-modal" id="zip-modal">
+        <div class="zip-modal-content">
+            <span class="zip-modal-close" id="zip-modal-close">&times;</span>
+            <h2>ZIP文件格式规范</h2>
+            
+            <h3 style="margin-top: 20px; margin-bottom: 10px;">格式要求</h3>
+            <ul style="margin-left: 20px; line-height: 2;">
+                <li>文件格式：<strong>必须是ZIP文件</strong></li>
+                <li>API接口：<code>POST /upload-extra-files</code></li>
+                <li>请求参数：<code>file</code> (zip文件), <code>extra_dir</code> (目标目录)</li>
+            </ul>
+            
+            <h3 style="margin-top: 20px; margin-bottom: 10px;">ZIP文件结构示例</h3>
+            <div class="zip-structure">extra_files.zip
+├── calibration_data/          # 校准数据（INT8静态量化）
+│   └── images/                # ImageFolder格式
+│       ├── class1/
+│       │   ├── img1.jpg
+│       │   └── img2.jpg
+│       └── class2/
+│           ├── img3.jpg
+│           └── img4.jpg
+├── train_data/                # 训练数据（QAT、蒸馏）
+│   └── images/                # ImageFolder格式
+│       ├── class1/
+│       └── class2/
+├── val_data/                  # 验证数据（剪枝评估）
+│   └── images/                # ImageFolder格式
+│       ├── class1/
+│       └── class2/
+└── teacher_model/             # 教师模型（知识蒸馏）
+    └── teacher.pt             # 教师模型文件</div>
+            
+            <h3 style="margin-top: 20px; margin-bottom: 10px;">目录识别规则（不区分大小写）</h3>
+            <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                <tr style="background: #f8f9fa;">
+                    <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">ZIP中的目录名</th>
+                    <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">识别为</th>
+                    <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">用途</th>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;"><code>calibration_data</code>, <code>calib</code>, <code>calibration</code></td>
+                    <td style="padding: 10px; border: 1px solid #ddd;"><code>calibration_data/</code></td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">INT8静态量化校准数据</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;"><code>train_data</code>, <code>train</code>, <code>training</code></td>
+                    <td style="padding: 10px; border: 1px solid #ddd;"><code>train_data/</code></td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">QAT量化、知识蒸馏训练数据</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;"><code>val_data</code>, <code>val</code>, <code>validation</code>, <code>valid</code></td>
+                    <td style="padding: 10px; border: 1px solid #ddd;"><code>val_data/</code></td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">剪枝精度评估数据</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;"><code>teacher_model</code>, <code>teacher</code></td>
+                    <td style="padding: 10px; border: 1px solid #ddd;"><code>teacher_model/</code></td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">知识蒸馏教师模型</td>
+                </tr>
+            </table>
+            
+            <h3 style="margin-top: 20px; margin-bottom: 10px;">上传后的功能变化</h3>
+            <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                <tr style="background: #f8f9fa;">
+                    <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">场景</th>
+                    <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">上传文件前</th>
+                    <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">上传文件后</th>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;"><strong>INT8量化</strong></td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">INT8动态量化</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">INT8静态量化（有校准数据，精度更高）</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;"><strong>自动剪枝</strong></td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">默认稀疏度0.3，无精度评估</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">可使用<code>val_data/</code>评估精度损失</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;"><strong>知识蒸馏</strong></td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">不可用（缺少必需文件）</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">可用（有<code>teacher_model/</code>和<code>train_data/</code>）</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;"><strong>QAT量化</strong></td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">不可用（缺少训练数据）</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">可用（有<code>train_data/</code>）</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+    
+    
+    <script>
+        // ========== 全局状态 ==========
+        let hasCalibrationData = false;  // 是否已上传校准数据
+        let hasTrainData = false;        // 是否已上传训练数据
+        let hasValData = false;          // 是否已上传验证数据
+        let hasTeacherModel = false;     // 是否已上传教师模型
+        
+        // ========== DOM元素 ==========
+        const quantizeCard = document.getElementById('quantize-card');
+        const pruneCard = document.getElementById('prune-card');
+        const distillCard = document.getElementById('distill-card');
+        
+        const quantizeMethod = document.getElementById('quantize-method');
+        const pruneMethod = document.getElementById('prune-method');
+        const distillMethod = document.getElementById('distill-method');
+        
+        const quantizeConfig = document.getElementById('quantize-config');
+        const pruneConfig = document.getElementById('prune-config');
+        const distillConfig = document.getElementById('distill-config');
+        
+        const sparsitySlider = document.getElementById('sparsity-slider');
+        const sparsityValue = document.getElementById('sparsity-value');
+        
+        const zipModal = document.getElementById('zip-modal');
+        const zipHelpBtn = document.getElementById('zip-help-btn');
+        const zipModalClose = document.getElementById('zip-modal-close');
+        
+        // ========== 事件监听 ==========
+        
+        // 复选框切换卡片激活状态（支持多选）
+        document.querySelectorAll('input[name="compression-type"]').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                // 根据复选框状态切换卡片激活状态
+                if (this.value === 'quantize') {
+                    quantizeCard.classList.toggle('active', this.checked);
+                } else if (this.value === 'prune') {
+                    pruneCard.classList.toggle('active', this.checked);
+                } else if (this.value === 'distill') {
+                    distillCard.classList.toggle('active', this.checked);
+                }
+                
+                // 如果取消选中，隐藏配置面板
+                if (!this.checked) {
+                    if (this.value === 'quantize') {
+                        quantizeConfig.classList.remove('show');
+                    } else if (this.value === 'prune') {
+                        pruneConfig.classList.remove('show');
+                    } else if (this.value === 'distill') {
+                        distillConfig.classList.remove('show');
+                    }
+                }
+            });
+        });
+        
+        // 量化方法下拉菜单变化
+        quantizeMethod.addEventListener('change', function() {
+            const method = this.value;
+            const isChecked = document.getElementById('quantize-checkbox').checked;
+            
+            if (!isChecked) {
+                quantizeConfig.classList.remove('show');
+                return;
+            }
+            
+            quantizeConfig.classList.add('show');
+            
+            // 隐藏所有配置项
+            document.getElementById('int8-config').style.display = 'none';
+            document.getElementById('qat-config').style.display = 'none';
+            document.getElementById('qat-lr-config').style.display = 'none';
+            document.getElementById('qat-file-check').style.display = 'none';
+            
+            if (method === 'int8') {
+                // INT8: 如果已上传校准数据，显示校准样本数量配置
+                if (hasCalibrationData) {
+                    document.getElementById('int8-config').style.display = 'block';
+                }
+            } else if (method === 'qat') {
+                // QAT: 显示训练参数配置
+                document.getElementById('qat-config').style.display = 'block';
+                document.getElementById('qat-lr-config').style.display = 'block';
+                
+                // 如果没有训练数据，显示警告
+                if (!hasTrainData) {
+                    document.getElementById('qat-file-check').style.display = 'block';
+                }
+            } else {
+                // 自动量化或FP16: 不显示配置面板
+                quantizeConfig.classList.remove('show');
+            }
+        });
+        
+        // 量化复选框变化时，显示/隐藏配置面板
+        document.getElementById('quantize-checkbox').addEventListener('change', function() {
+            if (this.checked) {
+                quantizeMethod.dispatchEvent(new Event('change'));
+            } else {
+                quantizeConfig.classList.remove('show');
+            }
+        });
+        
+        // 剪枝方法下拉菜单变化
+        pruneMethod.addEventListener('change', function() {
+            const isChecked = document.getElementById('prune-checkbox').checked;
+            
+            if (!isChecked) {
+                pruneConfig.classList.remove('show');
+                return;
+            }
+            
+            pruneConfig.classList.add('show');
+            
+            // 如果已上传验证数据，显示精度评估选项
+            if (hasValData) {
+                document.getElementById('val-data-check').style.display = 'block';
+            } else {
+                document.getElementById('val-data-check').style.display = 'none';
+            }
+        });
+        
+        // 剪枝复选框变化时，显示/隐藏配置面板
+        document.getElementById('prune-checkbox').addEventListener('change', function() {
+            if (this.checked) {
+                pruneMethod.dispatchEvent(new Event('change'));
+            } else {
+                pruneConfig.classList.remove('show');
+            }
+        });
+        
+        // 蒸馏方法下拉菜单变化
+        distillMethod.addEventListener('change', function() {
+            const isChecked = document.getElementById('distill-checkbox').checked;
+            
+            if (!isChecked) {
+                distillConfig.classList.remove('show');
+                return;
+            }
+            
+            distillConfig.classList.add('show');
+            
+            // 检查文件可用性
+            const fileCheck = document.getElementById('distill-file-check');
+            if (hasTeacherModel && hasTrainData) {
+                fileCheck.className = 'file-check success';
+                fileCheck.textContent = '✅ 文件已就绪：教师模型 + 训练数据';
+            } else {
+                fileCheck.className = 'file-check warning';
+                fileCheck.textContent = '⚠️ 需要上传: 教师模型 (teacher_model) + 训练数据 (train_data)';
+            }
+        });
+        
+        // 蒸馏复选框变化时，显示/隐藏配置面板
+        document.getElementById('distill-checkbox').addEventListener('change', function() {
+            if (this.checked) {
+                distillMethod.dispatchEvent(new Event('change'));
+            } else {
+                distillConfig.classList.remove('show');
+            }
+        });
+        
+        // 稀疏度滑块变化
+        sparsitySlider.addEventListener('input', function() {
+            const value = (parseFloat(this.value) * 100).toFixed(0);
+            sparsityValue.textContent = value + '%';
+        });
+        
+        // ZIP格式说明弹窗
+        zipHelpBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            zipModal.classList.add('show');
+        });
+        
+        zipModalClose.addEventListener('click', function() {
+            zipModal.classList.remove('show');
+        });
+        
+        zipModal.addEventListener('click', function(e) {
+            if (e.target === zipModal) {
+                zipModal.classList.remove('show');
+            }
+        });
+        
+        // 上传文件按钮（模拟）
+        document.getElementById('upload-btn').addEventListener('click', function() {
+            // 这里应该调用实际的上传API
+            // POST /upload-extra-files
+            
+            // 模拟上传后的状态更新
+            alert('上传文件功能：\n\n请调用 API: POST /upload-extra-files\n参数: file (zip文件), extra_dir (目标目录)\n\n上传后系统会自动识别文件类型并更新可用选项');
+            
+            // 模拟更新状态（实际应该从API响应中获取）
+            // hasCalibrationData = true;
+            // hasTrainData = true;
+            // hasValData = true;
+            // hasTeacherModel = true;
+            // updateUI();
+        });
+        
+        // 执行操作按钮
+        document.getElementById('execute-btn').addEventListener('click', function() {
+            const selectedTypes = Array.from(document.querySelectorAll('input[name="compression-type"]:checked'));
+            
+            if (selectedTypes.length === 0) {
+                alert('请至少选择一种压缩技术');
+                return;
+            }
+            
+            const method = {};
+            
+            // 构建多个压缩技术的配置
+            selectedTypes.forEach(checkbox => {
+                const typeConfig = buildMethodConfig(checkbox.value);
+                Object.assign(method, typeConfig);
+            });
+            
+            console.log('执行压缩操作，配置:', method);
+            alert('执行操作功能：\n\n请调用 API: POST /execute\n\n配置参数:\n' + JSON.stringify(method, null, 2));
+            
+            // 这里应该调用实际的执行API
+            // POST /execute
+            // {
+            //   "model_dir": "...",
+            //   "result_dir": "...",
+            //   "method": method
+            // }
+        });
+        
+        // ========== 辅助函数 ==========
+        
+        // 构建方法配置对象
+        function buildMethodConfig(type) {
+            const config = {};
+            
+            if (type === 'quantize') {
+                const method = quantizeMethod.value;
+                config.quantize = {
+                    enable: true
+                };
+                
+                if (method === 'auto') {
+                    config.quantize.precision = 'auto';
+                } else if (method === 'fp16') {
+                    config.quantize.precision = 'fp16';
+                } else if (method === 'int8') {
+                    config.quantize.precision = hasCalibrationData ? 'int8_static' : 'int8_dynamic';
+                    if (hasCalibrationData) {
+                        config.quantize.calib_num = parseInt(document.getElementById('calib_num').value);
+                    }
+                } else if (method === 'qat') {
+                    config.quantize.precision = 'qat';
+                    config.quantize.epochs = parseInt(document.getElementById('qat_epochs').value);
+                    config.quantize.learning_rate = parseFloat(document.getElementById('qat_lr').value);
+                }
+            } else if (type === 'prune') {
+                const method = pruneMethod.value;
+                config.prune = {
+                    enable: true
+                };
+                
+                if (method === 'auto') {
+                    config.prune.method = 'auto';
+                } else {
+                    config.prune.method = method === 'structured_pruning' ? 'structured' : 'unstructured';
+                }
+                
+                config.prune.target_sparsity = parseFloat(sparsitySlider.value);
+                
+                if (hasValData && document.getElementById('enable_eval').checked) {
+                    config.prune.enable_evaluation = true;
+                }
+            } else if (type === 'distill') {
+                const method = distillMethod.value;
+                config.distill = {
+                    enable: true
+                };
+                
+                if (method === 'auto') {
+                    config.distill.method = 'auto';
+                } else {
+                    config.distill.method = 'knowledge_distillation';
+                }
+                
+                config.distill.temperature = parseFloat(document.getElementById('distill_temp').value);
+                config.distill.alpha = parseFloat(document.getElementById('distill_alpha').value);
+                config.distill.epochs = parseInt(document.getElementById('distill_epochs').value);
+            }
+            
+            return config;
+        }
+        
+        // 更新UI状态（根据文件上传情况）
+        function updateUI() {
+            // 更新量化选项
+            if (quantizeMethod.value === 'int8' && hasCalibrationData) {
+                document.getElementById('int8-config').style.display = 'block';
+            }
+            
+            if (quantizeMethod.value === 'qat') {
+                if (!hasTrainData) {
+                    document.getElementById('qat-file-check').style.display = 'block';
+                } else {
+                    document.getElementById('qat-file-check').style.display = 'none';
+                }
+            }
+            
+            // 更新剪枝选项
+            if (hasValData) {
+                document.getElementById('val-data-check').style.display = 'block';
+            }
+            
+            // 更新蒸馏选项
+            const fileCheck = document.getElementById('distill-file-check');
+            if (hasTeacherModel && hasTrainData) {
+                fileCheck.className = 'file-check success';
+                fileCheck.textContent = '✅ 文件已就绪：教师模型 + 训练数据';
+            } else {
+                fileCheck.className = 'file-check warning';
+                fileCheck.textContent = '⚠️ 需要上传: 教师模型 (teacher_model) + 训练数据 (train_data)';
+            }
+        }
+        
+        // ========== 初始化 ==========
+        // 默认选中第一个卡片（可选）
+        // quantizeCard.classList.add('active');
+        // document.getElementById('quantize-checkbox').checked = true;
+    </script>
+</body>
+</html>
+
